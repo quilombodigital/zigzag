@@ -14,6 +14,12 @@ with embroidery machines—or send designs directly to a **Brother Skitch
 Draw in Illustrator, draw in ZigZag, or let an agent draw. The Rust engine
 and `zigzag` command-line tool power the same workflow outside the editor.
 
+> **ZZZ — ZigZag in the browser.** This fork also builds the studio for the
+> web: [quilombodigital.github.io/zigzag](https://quilombodigital.github.io/zigzag/)
+> (Chrome or Edge). Same editor, nothing to install, with saving to your
+> files, Web Bluetooth for the Skitch, and agents through a small relay.
+> See [docs/zzz.md](docs/zzz.md).
+
 ## See ZigZag in action
 
 https://github.com/user-attachments/assets/94812f25-82f4-429f-85db-5e20c1d5e723
@@ -77,7 +83,7 @@ inside the extracted folder. It also includes the `zigzag` CLI and
 · [Publishing a release](RELEASE.md)
 
 The repository is a Cargo workspace: the engine at the root, and what's
-built on it in `crates/`.
+built on it in `crates/` (see [docs/architecture.md](docs/architecture.md)).
 
 ```
 zigzag/
@@ -99,10 +105,14 @@ zigzag/
   src/formats/            PES (+PEC), DST, EXP, JEF, VP3, Skitch PEN writers;
                           PES/PEC/DST/EXP/JEF readers; preview; worksheet
   src/machine/            Skitch Bluetooth protocol (+ btleplug client, `ble` feature)
+  src/vfs.rs              file access: std::fs on the desktop, files in memory in the browser
   src/mcp_bridge.rs       stdio ↔ HTTP bridge for MCP clients that launch a command
   crates/studio/          the editor (egui on OpenGL via glow) + MCP server: a library,
                           and the desktop app `zigzag-studio`
+  crates/web/             ZZZ: the studio in the browser (WebAssembly, built with Trunk)
+  crates/relay/           zigzag-mcp-relay: MCP clients ↔ a ZZZ tab
   vendor/                 Image Trace (VectorCraft), vendored
+  docs/                   architecture, development, ZZZ, plans
 ```
 
 ## Build
@@ -114,7 +124,8 @@ cargo build --release -p zigzag -p zigzag-studio --features zigzag/ble,zigzag-st
 ```
 
 Linux needs the usual X11/Wayland and OpenGL dev libraries for the studio.
-libdbus is vendored for `ble`.
+libdbus is vendored for `ble`. The browser version, tests and releases:
+[docs/development.md](docs/development.md).
 
 ## Stitch types
 
