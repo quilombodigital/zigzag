@@ -1728,6 +1728,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gloo-timers"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "glow"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2274,6 +2286,17 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+
+[[package]]
+name = "maybe-async"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "746873a384ad60adc5db74471dfaba74bd278afbdcfd81db93fafcdfc8b5ca0c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "memchr"
@@ -5120,13 +5143,16 @@ name = "zigzag"
 version = "0.1.6"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.23.1",
  "btleplug",
  "clap",
  "futures",
+ "gloo-timers",
  "i_overlay",
  "kurbo 0.13.1",
  "libdbus-sys",
+ "maybe-async",
  "resvg",
  "roxmltree",
  "serde_json",
@@ -5136,6 +5162,7 @@ dependencies = [
  "usvg",
  "uuid",
  "vectorcraft-trace",
+ "web-time",
  "winresource",
 ]
 

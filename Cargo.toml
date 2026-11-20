@@ -45,13 +45,6 @@ svgtypes = "0.15"
 # Glyph advances for the text caret (the version usvg itself uses).
 ttf-parser = "0.25"
 
-# Bluetooth upload to the Brother Skitch (PP1). Optional so the core
-# pipeline builds anywhere without Bluetooth system libraries.
-btleplug = { version = "0.13", optional = true }
-futures = { version = "0.3", optional = true }
-tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }
-uuid = { version = "1", optional = true, features = ["v4"] }
-
 i_overlay = { version = "9", default-features = false }
 roxmltree = { version = "0.20", default-features = false }
 resvg = { version = "0.45", default-features = false }
@@ -62,6 +55,26 @@ base64 = "0.23.1"
 # VectorCraft. See vendor/README.md.
 vectorcraft-trace = { path = "vendor/vectorcraft-trace" }
 kurbo = "0.13"
+# `Instant` that also works in the browser (std's panics there); std's own elsewhere.
+web-time = "1"
+
+# The machine conversation (src/machine) is written once and built two ways:
+# blocking on the desktop, where a worker thread holds it, and async in the
+# browser, where there are no threads and Bluetooth answers with promises.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+maybe-async = { version = "0.2", features = ["is_sync"] }
+# Bluetooth upload to the Brother Skitch (PP1), on the desktop. Optional so
+# the core pipeline builds anywhere without Bluetooth system libraries. (The
+# browser has its own Bluetooth.)
+btleplug = { version = "0.13", optional = true }
+futures = { version = "0.3", optional = true }
+tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }
+uuid = { version = "1", optional = true, features = ["v4"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+maybe-async = "0.2"
+async-trait = "0.1"
+gloo-timers = { version = "0.3", features = ["futures"] }
 
 # On Linux, btleplug talks to BlueZ over D-Bus; vendoring libdbus avoids
 # needing libdbus-1-dev installed to build.
