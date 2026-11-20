@@ -10,10 +10,10 @@ license = "Apache-2.0"
 build = "build.rs"
 
 # The engine (this package, in src/) and what's built on it, in crates/:
-# the studio (the editor, a library and the desktop app) and ZZZ (the studio
-# in the browser).
+# the studio (the editor, a library and the desktop app), ZZZ (the studio in
+# the browser) and the MCP relay for it.
 [workspace]
-members = ["crates/studio", "crates/web"]
+members = ["crates/studio", "crates/web", "crates/relay"]
 # Vendored crates are dependencies, not members: their own test suites were
 # left out (vendor/README.md).
 exclude = ["vendor"]
