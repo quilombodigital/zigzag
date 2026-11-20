@@ -56,6 +56,9 @@ pub enum Action {
     ResetPanels,
     /// Show the prompt bar and put the cursor in it.
     AskAgent,
+    /// Type › Add Fonts… (the browser only, which has no system fonts):
+    /// font files to set text in.
+    AddFonts,
     /// Open the issues list (in the status bar).
     ShowIssues,
     TransformAgain,
@@ -197,7 +200,68 @@ pub enum Entry {
 
 use Entry::{Item, Sep, Sub};
 
+/// What only a desktop app does: not in the menus in the browser, and
+/// not to be had by its shortcut there.
+/// What only the browser needs: not in the desktop's menus.
+fn browser_only(a: Action) -> bool {
+    matches!(a, Action::AddFonts)
+}
+
+fn desktop_only(a: Action) -> bool {
+    matches!(
+        a,
+        Action::AskAgent
+            | Action::Quit
+            | Action::CrashLogs
+            | Action::CheckForUpdates
+            | Action::Panel(PanelId::Agent)
+    )
+}
+
+/// Take what this build doesn't do out of a menu (`skip`), and the
+/// separators that leaves at an end or doubled.
+fn without(entries: &mut Vec<Entry>, skip: fn(Action) -> bool) {
+    entries.retain_mut(|e| match e {
+        Item(a, _, shortcut) => {
+            // The browser keeps these keys for itself (a new window,
+            // closing the tab): the commands stay, without them.
+            if cfg!(target_arch = "wasm32") && matches!(a, Action::New | Action::CloseTab) {
+                *shortcut = None;
+            }
+            !skip(*a)
+        }
+        Sub(_, sub) => {
+            without(sub, skip);
+            !sub.is_empty()
+        }
+        Sep => true,
+    });
+    let mut last_was_sep = true;
+    entries.retain(|e| {
+        let sep = matches!(e, Sep);
+        let keep = !(sep && last_was_sep);
+        last_was_sep = sep;
+        keep
+    });
+    if matches!(entries.last(), Some(Sep)) {
+        entries.pop();
+    }
+}
+
 pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
+    let mut menus = all_menus();
+    let skip = if cfg!(target_arch = "wasm32") {
+        desktop_only
+    } else {
+        browser_only
+    };
+    for (_, entries) in &mut menus {
+        without(entries, skip);
+    }
+    menus
+}
+
+fn all_menus() -> Vec<(&'static str, Vec<Entry>)> {
     let mut export: Vec<Entry> = zigzag::formats::MACHINE_FORMATS
         .iter()
         .map(|&(ext, label)| Item(Action::Export(ext), label, None))
@@ -346,6 +410,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
             vec![
                 Item(Action::AddText, "Add Text…", None),
                 Item(Action::TypeOnPath, "Type on a Path", None),
+                Item(Action::AddFonts, "Add Fonts…", None),
                 Sep,
                 Sub(
                     "Change Case",
@@ -457,7 +522,15 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
                     vec![UPDATES_ITEM, Sep]
                 };
                 help.extend([
-                    Item(Action::GitHub, "ZigZag on GitHub", None),
+                    Item(
+                        Action::GitHub,
+                        if cfg!(target_arch = "wasm32") {
+                            "ZZZ on GitHub"
+                        } else {
+                            "ZigZag on GitHub"
+                        },
+                        None,
+                    ),
                     Item(Action::ReportIssue, "Report an Issue…", None),
                     Item(Action::CrashLogs, "Show Crash Logs", None),
                 ]);
@@ -476,17 +549,24 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 /// things every report gets asked for).
 pub fn issue_url() -> String {
     let body = format!(
-        "**What happened**\n\n\n**What you expected**\n\n\n**Steps, and the design if you can share it**\n\n\n---\nZigZag {} on {} ({})\n",
+        "**What happened**\n\n\n**What you expected**\n\n\n**Steps, and the design if you can share it**\n\n\n---\n{} {} on {} ({})\n",
+        if cfg!(target_arch = "wasm32") {
+            "ZZZ"
+        } else {
+            "ZigZag"
+        },
         env!("CARGO_PKG_VERSION"),
         match std::env::consts::OS {
             "macos" => "macOS",
             "windows" => "Windows",
             "linux" => "Linux",
+            // (In the browser: which one isn't known here.)
+            "unknown" if cfg!(target_arch = "wasm32") => "the browser",
             other => other,
         },
         std::env::consts::ARCH,
     );
-    let mut url = String::from("https://github.com/simpsoka/zigzag/issues/new?body=");
+    let mut url = format!("{}/issues/new?body=", crate::about::home_url());
     for b in body.bytes() {
         match b {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
@@ -595,6 +675,12 @@ impl Studio {
     }
 
     pub fn action_enabled(&self, a: Action) -> bool {
+        if cfg!(target_arch = "wasm32") && desktop_only(a) {
+            return false;
+        }
+        if cfg!(not(target_arch = "wasm32")) && browser_only(a) {
+            return false;
+        }
         let has_sel = !self.sel_indices().is_empty();
         let has_design = !self.design.blocks.is_empty();
         match a {
@@ -753,6 +839,12 @@ impl Studio {
                 }
             }
             Action::SaveAs => self.save_as_dialog(),
+            Action::AddFonts => {
+                #[cfg(target_arch = "wasm32")]
+                if let Some(ctx) = &self.egui_ctx {
+                    crate::platform::add_fonts(ctx);
+                }
+            }
             Action::Export(ext) => self.export_dialog(ext),
             Action::SendToSkitch => self.send_action(),
             Action::Undo => self.pending_history = Some(History::Undo),
@@ -854,7 +946,7 @@ impl Studio {
             Action::ToggleJumps => self.show_jumps = !self.show_jumps,
             Action::Settings => self.open_settings(self.settings_ui.section),
             Action::ReportIssue => crate::sew::open_url(&issue_url()),
-            Action::GitHub => crate::sew::open_url(crate::about::GITHUB_URL),
+            Action::GitHub => crate::sew::open_url(crate::about::home_url()),
             Action::CrashLogs => self.show_crash_logs(),
             Action::About => self.about = true,
             Action::Quit => self.request_quit(),

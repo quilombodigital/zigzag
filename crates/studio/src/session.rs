@@ -122,7 +122,7 @@ impl SessionState {
     /// A tab was closed: its unsaved changes go with it.
     pub(crate) fn forget_recovery(&mut self, rec: u32) {
         if let Some(f) = self.file(&recovery_file(rec)) {
-            let _ = std::fs::remove_file(f);
+            let _ = zigzag::vfs::remove_file(f);
         }
         if rec == self.rec {
             self.saved_doc = None;
@@ -133,19 +133,23 @@ impl SessionState {
 /// Write `text` to `path` whole or not at all (a crash mid-write leaves the
 /// old file).
 fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
-    use std::io::Write;
     if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
+        zigzag::vfs::create_dir_all(dir)?;
     }
     let tmp = path.with_extension("tmp");
+    // (In the browser the files are in memory: a write there is whole.)
+    #[cfg(target_arch = "wasm32")]
+    zigzag::vfs::write(&tmp, text)?;
+    #[cfg(not(target_arch = "wasm32"))]
     {
+        use std::io::Write;
         let mut f = std::fs::File::create(&tmp)?;
         f.write_all(text.as_bytes())?;
         // On disk before it takes the old file's place: a power cut or a
         // kernel panic right after the rename can't leave an empty file.
         f.sync_all()?;
     }
-    std::fs::rename(&tmp, path)
+    zigzag::vfs::rename(&tmp, path)
 }
 
 /// What `session.json` says about one tab.
@@ -222,7 +226,7 @@ impl Studio {
             // A whole frame went by with the restored documents: they're safe.
             self.session.restoring = false;
             if let Some(m) = self.session.file(RESTORING) {
-                let _ = std::fs::remove_file(m);
+                let _ = zigzag::vfs::remove_file(m);
             }
         }
         // (The tabs not in front can only have changed on their way to the
@@ -291,7 +295,7 @@ impl Studio {
                     _ => return,
                 }
             } else {
-                let _ = std::fs::remove_file(&svg);
+                let _ = zigzag::vfs::remove_file(&svg);
                 self.session.saved_doc = None;
             }
         }
@@ -318,7 +322,7 @@ impl Studio {
                     }
                 }
             } else if t.saved.take().is_some() {
-                let _ = std::fs::remove_file(&f);
+                let _ = zigzag::vfs::remove_file(&f);
             }
         }
         let meta = self.session_meta(recovery);
@@ -335,7 +339,7 @@ impl Studio {
         let Some(meta) = self
             .session
             .file("session.json")
-            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|f| zigzag::vfs::read_to_string(f).ok())
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         else {
             return false;
@@ -360,17 +364,17 @@ impl Studio {
             format!("your {} documents", names.len())
         };
         let marker = self.session.file(RESTORING);
-        if let Some(m) = marker.as_ref().filter(|m| m.exists()) {
+        if let Some(m) = marker.as_ref().filter(|m| zigzag::vfs::exists(m)) {
             // The last launch went down bringing this back. Don't go round
             // again: keep what there was, aside, and start fresh.
-            let _ = std::fs::remove_file(m);
+            let _ = zigzag::vfs::remove_file(m);
             let kept: Vec<PathBuf> = entries
                 .iter()
                 .filter(|e| e["recovery"].as_bool().unwrap_or(false))
                 .filter_map(|e| {
                     let svg = self.session.file(&recovery_file(rec_of(e)))?;
                     let aside = aside(&svg, "crashed");
-                    std::fs::rename(&svg, &aside).ok().map(|_| aside)
+                    zigzag::vfs::rename(&svg, &aside).ok().map(|_| aside)
                 })
                 .collect();
             self.session.saved_doc = None;
@@ -396,7 +400,7 @@ impl Studio {
             return false;
         }
         if let Some(m) = &marker {
-            let _ = std::fs::write(m, names.join("\n"));
+            let _ = zigzag::vfs::write(m, names.join("\n"));
             self.session.restoring = true;
         }
         self.tabs.next_rec = entries
@@ -432,7 +436,7 @@ impl Studio {
         if opened == 0 {
             self.session.restoring = false;
             if let Some(m) = &marker {
-                let _ = std::fs::remove_file(m);
+                let _ = zigzag::vfs::remove_file(m);
             }
             return false;
         }
@@ -460,13 +464,13 @@ impl Studio {
             .flatten();
         let mut unreadable = None;
         let recovered = recovery_file.as_ref().and_then(|f| {
-            let xml = std::fs::read_to_string(f).ok()?;
+            let xml = zigzag::vfs::read_to_string(f).ok()?;
             match Document::from_svg(&xml, &name, path.clone()) {
                 Ok(doc) => Some(doc),
                 Err(e) => {
                     // Unreadable: keep it rather than lose it, and say so.
                     let kept = aside(f, "unreadable");
-                    let _ = std::fs::rename(f, &kept);
+                    let _ = zigzag::vfs::rename(f, &kept);
                     unreadable = Some(format!(
                         "Couldn't read the unsaved changes to {name} ({e:#}); they're kept in {}.",
                         kept.display()
@@ -481,7 +485,7 @@ impl Studio {
             self.status =
                 format!("Picked up where you left off: {name}, with its unsaved changes.");
             true
-        } else if let Some(p) = path.filter(|p| p.exists()) {
+        } else if let Some(p) = path.filter(|p| zigzag::vfs::exists(p)) {
             self.load(&p);
             self.status = unreadable
                 .take()
@@ -619,7 +623,7 @@ impl Studio {
     /// The job is over (the design was taken off the machine).
     pub(crate) fn forget_sent(&self) {
         if let Some(f) = self.session.file("sent.json") {
-            let _ = std::fs::remove_file(f);
+            let _ = zigzag::vfs::remove_file(f);
         }
     }
 
@@ -630,7 +634,7 @@ impl Studio {
         let Some(v) = self
             .session
             .file("sent.json")
-            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|f| zigzag::vfs::read_to_string(f).ok())
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         else {
             return false;

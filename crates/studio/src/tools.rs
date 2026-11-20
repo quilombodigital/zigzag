@@ -177,6 +177,17 @@ fn apply_text_args(spec: &mut zigzag::document::TextSpec, args: &Value) -> Resul
 }
 
 /// The `tools/list` result.
+/// Whether a path a tool was given is a full one, as it must be. (In the
+/// browser, where the files are in memory and `std` knows no full paths:
+/// one from the root.)
+fn full_path(p: &std::path::Path) -> bool {
+    if cfg!(target_arch = "wasm32") {
+        p.has_root()
+    } else {
+        p.is_absolute()
+    }
+}
+
 pub fn tool_specs() -> Value {
     let fabrics: Vec<&str> = FABRICS.iter().map(|f| f.id).collect();
     let hoops: Vec<&str> = HOOPS.iter().map(|h| h.0).collect();
@@ -300,7 +311,11 @@ pub fn tool_specs() -> Value {
         }),
         json!({
             "name": "list_fonts",
-            "description": "Font families installed on this computer, for add_text.",
+            "description": if cfg!(target_arch = "wasm32") {
+                "Font families ZZZ can set text in, for add_text: the ones it comes with, and those the person added (Type › Add Fonts…)."
+            } else {
+                "Font families installed on this computer, for add_text."
+            },
             "inputSchema": { "type": "object", "properties": { "search": { "type": "string" } } },
             "annotations": { "readOnlyHint": true }
         }),
@@ -1242,7 +1257,7 @@ impl Studio {
                 Ok(ToolResult::json(&self.object_json(i)))
             }),
             "open_file" => match args.get("path").and_then(Value::as_str).map(PathBuf::from) {
-                Some(p) if p.is_absolute() => {
+                Some(p) if full_path(&p) => {
                     let doc = Document::open(&p).map_err(|e| format!("{e:#}"));
                     doc.map(|d| {
                         self.open_document(d);
@@ -1353,7 +1368,7 @@ impl Studio {
             "save" => {
                 let path = args.get("path").and_then(Value::as_str).map(PathBuf::from);
                 if let Some(p) = &path
-                    && !p.is_absolute()
+                    && !full_path(p)
                 {
                     return ToolResult::error("path must be absolute");
                 }
@@ -1398,7 +1413,7 @@ impl Studio {
                         "format is required: the path doesn't end in one (.pes, .dst, …) and the document has no machine that says which file it reads"
                             .into(),
                     ),
-                    Some(p) if p.is_absolute() => self
+                    Some(p) if full_path(&p) => self
                         .export_to(fmt.unwrap_or(""), &p)
                         .and_then(|_| {
                             let mut said = format!(
@@ -1418,7 +1433,7 @@ impl Studio {
                                         )
                                     })?;
                                 let to = zigzag::document::Document::object_map_path(&p);
-                                std::fs::write(&to, serde_json::to_string_pretty(&map)?)?;
+                                zigzag::vfs::write(&to, serde_json::to_string_pretty(&map)?)?;
                                 said.push_str(&format!(" Wrote {}.", to.display()));
                             }
                             Ok(ToolResult::text(said))
@@ -1645,11 +1660,11 @@ impl Studio {
 
     fn tool_trace_image(&mut self, args: &Value) -> Result<ToolResult, String> {
         let path = match args.get("path").and_then(Value::as_str).map(PathBuf::from) {
-            Some(p) if p.is_absolute() => p,
+            Some(p) if full_path(&p) => p,
             _ => return Err("path must be absolute".into()),
         };
         let bytes =
-            std::fs::read(&path).map_err(|e| format!("couldn't read {}: {e}", path.display()))?;
+            zigzag::vfs::read(&path).map_err(|e| format!("couldn't read {}: {e}", path.display()))?;
         let num = |k: &str| {
             args.get(k)
                 .and_then(Value::as_f64)

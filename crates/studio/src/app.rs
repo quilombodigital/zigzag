@@ -4,7 +4,7 @@ use crate::canvas::{self, DrawOptions, View, color32};
 use crate::widgets::*;
 use eframe::egui::{self, Color32, Key, Pos2, Rect, Sense, Stroke, Vec2};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use web_time::Instant;
 use zigzag::checks::{self, Issue, Level};
 use zigzag::design::{self, Design};
 use zigzag::document::{Document, Settings};
@@ -296,6 +296,10 @@ impl Studio {
         // A job on the Skitch outlives the app: pick it up too.
         let resume = s.restore_sent() && s.session.resume_skitch;
         s.dock = crate::dock::DockState::load();
+        // (The browser has no agent program to run: its panel stays away.)
+        if cfg!(target_arch = "wasm32") && s.dock.visible(crate::dock::PanelId::Agent) {
+            s.dock.toggle(crate::dock::PanelId::Agent);
+        }
         s.palettes = crate::palettes::Palettes::load();
         s.agent = crate::agent::AgentState::load();
         s.dock_saved = s.dock.clone();
@@ -305,7 +309,10 @@ impl Studio {
         s.apply_prefs();
         s.apply_agent_log();
         // (Not while a script is taking pictures.)
-        s.updates_on = std::env::var_os("ZIGZAG_CAPTURE").is_none();
+        // (Not in the browser: the page is always the newest, and a
+        // failure there has no log to find.)
+        s.updates_on =
+            std::env::var_os("ZIGZAG_CAPTURE").is_none() && cfg!(not(target_arch = "wasm32"));
         if s.updates_on {
             s.crash = crate::crash::dir().and_then(|d| crate::crash::unreported(&d));
         }
@@ -363,7 +370,7 @@ impl Studio {
                             version: v,
                             notes: std::env::var("ZIGZAG_CAPTURE_NOTES")
                                 .ok()
-                                .and_then(|f| std::fs::read_to_string(f).ok())
+                                .and_then(|f| zigzag::vfs::read_to_string(f).ok())
                                 .unwrap_or_default(),
                             page: crate::update::DOWNLOAD_PAGE.into(),
                             asset: Some(crate::update::Asset {
@@ -1015,7 +1022,7 @@ impl Studio {
                 &self.doc.settings.export_options(),
             )?
         };
-        std::fs::write(path, bytes)?;
+        zigzag::vfs::write(path, bytes)?;
         Ok(())
     }
 
@@ -1185,7 +1192,7 @@ impl Studio {
             self.open_image(path, crate::trace_ui::Target::Place);
             return;
         }
-        let text = match std::fs::read_to_string(path) {
+        let text = match zigzag::vfs::read_to_string(path) {
             Ok(t) => t,
             Err(e) => {
                 self.status = format!("Couldn't read {}: {e}", path.display());
@@ -1274,6 +1281,19 @@ impl Studio {
     /// Answer queued MCP tool calls (on the UI thread, between frames).
     /// False when they have to wait.
     pub fn handle_mcp(&mut self) -> bool {
+        // In the browser there's no server here: agents reach the tab
+        // through a relay, and their calls are run the same way.
+        #[cfg(target_arch = "wasm32")]
+        {
+            let busy = self.previewing()
+                || self.file_dialog_open()
+                || self.drag.is_some()
+                || self.path_edit.drag.is_some();
+            // (Calls left waiting on a dialog or a drag: look again soon.)
+            if crate::platform::serve_agents(self, busy) {
+                return false;
+            }
+        }
         if self.mcp.is_none() {
             return true;
         }
@@ -1313,6 +1333,7 @@ impl Studio {
         crate::profile::begin();
         self.sync_ui_scale(&ctx);
 
+        #[cfg(not(target_arch = "wasm32"))]
         let dropped: Vec<PathBuf> = ctx.input(|i| {
             i.raw
                 .dropped_files
@@ -1320,6 +1341,15 @@ impl Studio {
                 .map(|f| f.path().to_path_buf())
                 .collect()
         });
+        // In the browser a dropped file has no path and is read later: it
+        // turns up here once it's among the files in memory.
+        #[cfg(target_arch = "wasm32")]
+        let dropped: Vec<PathBuf> = {
+            for f in ctx.input(|i| i.raw.dropped_files.clone()) {
+                crate::platform::read_dropped(f, &ctx);
+            }
+            crate::platform::take_dropped()
+        };
         let openable = |e: &std::ffi::OsStr| {
             let e = e.to_string_lossy().to_ascii_lowercase();
             e == "svg"
@@ -1495,6 +1525,16 @@ impl Studio {
             &self.doc.name
         };
         let title = format!("{}{} — ZigZag", if self.modified { "• " } else { "" }, name);
+        // In the browser: what was written this frame goes out (kept for
+        // the next visit, saved to its file); the tab's title; and whether
+        // leaving the page would lose something (the browser asks first).
+        #[cfg(target_arch = "wasm32")]
+        crate::platform::flush();
+        #[cfg(target_arch = "wasm32")]
+        crate::platform::page_state(
+            &title.replace("ZigZag", "ZZZ"),
+            !self.unsaved_tabs().is_empty(),
+        );
         if title != self.title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.title = title;

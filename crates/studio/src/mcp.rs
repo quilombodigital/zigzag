@@ -12,7 +12,8 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 
 pub const PROTOCOL_VERSION: &str = "2025-06-18";
 pub const DEFAULT_PORT: u16 = 7878;

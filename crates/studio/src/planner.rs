@@ -75,7 +75,7 @@ impl Planner {
                     while let Ok(newer) = job_rx.try_recv() {
                         job = newer;
                     }
-                    let t = std::time::Instant::now();
+                    let t = web_time::Instant::now();
                     let result = zigzag::design::caught(|| {
                         let design = zigzag::design::plan_cached(
                             &job.name,
@@ -113,7 +113,8 @@ impl Planner {
             self.slow = false;
             return;
         }
-        self.slow = ms > SLOW_MS;
+        // (In the browser there's no thread to hand it to.)
+        self.slow = ms > SLOW_MS && cfg!(not(target_arch = "wasm32"));
     }
 
     /// The next plan may be slow, however quick the last one was (the
@@ -123,7 +124,7 @@ impl Planner {
         if !self.timed {
             return;
         }
-        self.slow = true;
+        self.slow = cfg!(not(target_arch = "wasm32"));
     }
 
     /// A synchronous plan was just made: anything still out is stale.

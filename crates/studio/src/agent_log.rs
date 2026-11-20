@@ -15,7 +15,7 @@ use crate::mcp::{Content, ToolResult};
 use serde_json::{Value, json};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use web_time::{SystemTime, UNIX_EPOCH};
 
 /// The longest string kept whole, in arguments and in a result. (An SVG
 /// an agent wrote is most of what it did, so most are kept whole; a
@@ -175,7 +175,7 @@ impl crate::app::Studio {
         &mut self,
         tool: &str,
         args: &Value,
-        at: std::time::Instant,
+        at: web_time::Instant,
         result: &ToolResult,
     ) {
         let client = self.mcp.as_ref().and_then(|server| {
@@ -241,7 +241,7 @@ mod tests {
                 json!({ "object": "Face_mask", "kind": "fill" }),
             ),
         ] {
-            let at = std::time::Instant::now();
+            let at = web_time::Instant::now();
             let r = s.run_mcp_call(tool, &args);
             s.log_call(tool, &args, at, &r);
         }

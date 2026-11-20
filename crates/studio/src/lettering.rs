@@ -1945,7 +1945,7 @@ mod tests {
         h.run_steps(1);
         h.drop_at(at);
         h.run_steps(2);
-        let t = std::time::Instant::now();
+        let t = web_time::Instant::now();
         for ch in "CAMPFIRE".chars() {
             h.event(eframe::egui::Event::Text(ch.to_string()));
             h.run_steps(1);
@@ -1954,7 +1954,7 @@ mod tests {
             "typing frame: {:.1} ms",
             t.elapsed().as_secs_f64() * 1000.0 / 8.0
         );
-        let t = std::time::Instant::now();
+        let t = web_time::Instant::now();
         h.run_steps(10);
         eprintln!(
             "idle frame while typing: {:.1} ms",
@@ -1974,7 +1974,7 @@ mod tests {
         h.run_steps(1);
         h.drag_at(c);
         h.run_steps(1);
-        let t = std::time::Instant::now();
+        let t = web_time::Instant::now();
         for k in 1..=20 {
             h.hover_at(c + eframe::egui::Vec2::new(k as f32 * 3.0, 0.0));
             h.run_steps(1);

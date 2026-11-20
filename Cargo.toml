@@ -65,7 +65,7 @@ web-time = "1"
 maybe-async = { version = "0.2", features = ["is_sync"] }
 # Bluetooth upload to the Brother Skitch (PP1), on the desktop. Optional so
 # the core pipeline builds anywhere without Bluetooth system libraries. (The
-# browser has its own Bluetooth.)
+# browser has its own Bluetooth: crates/studio/src/platform.)
 btleplug = { version = "0.13", optional = true }
 futures = { version = "0.3", optional = true }
 tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "time"] }

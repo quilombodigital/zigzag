@@ -811,10 +811,17 @@ impl Studio {
                 title(ui, "Pair the Skitch with this computer");
                 numbered(
                     ui,
-                    &[
-                        "Hold the Skitch's Bluetooth button until it beeps.",
-                        "Click Try Again straight away. If your computer asks to pair, click Connect or Pair.",
-                    ],
+                    if cfg!(target_arch = "wasm32") {
+                        &[
+                            "Hold the Skitch's Bluetooth button until it beeps.",
+                            "Click Try Again straight away, and choose the Skitch in the list the browser shows. If your computer asks to pair, click Connect or Pair.",
+                        ]
+                    } else {
+                        &[
+                            "Hold the Skitch's Bluetooth button until it beeps.",
+                            "Click Try Again straight away. If your computer asks to pair, click Connect or Pair.",
+                        ]
+                    },
                 );
                 ui.horizontal(|ui| {
                     connect = primary(ui, "Try Again").clicked();
@@ -838,11 +845,19 @@ impl Studio {
                 title(ui, "No Skitch found");
                 numbered(
                     ui,
-                    &[
-                        "Check it's on and close by.",
-                        "Close Artspira: the Skitch talks to one app at a time.",
-                        "First time? Hold its Bluetooth button until it beeps, then Try Again.",
-                    ],
+                    if cfg!(target_arch = "wasm32") {
+                        &[
+                            "Check it's on and close by.",
+                            "Close Artspira: the Skitch talks to one app at a time.",
+                            "Click Try Again and choose the Skitch in the list the browser shows. It isn't there? Hold its Bluetooth button until it beeps, and look again.",
+                        ]
+                    } else {
+                        &[
+                            "Check it's on and close by.",
+                            "Close Artspira: the Skitch talks to one app at a time.",
+                            "First time? Hold its Bluetooth button until it beeps, then Try Again.",
+                        ]
+                    },
                 );
                 ui.horizontal(|ui| {
                     connect = primary(ui, "Try Again").clicked();
@@ -875,10 +890,18 @@ impl Studio {
                 title(ui, "Connect to your Skitch");
                 numbered(
                     ui,
-                    &[
-                        "Turn the machine on.",
-                        "Close Artspira: the Skitch talks to one app at a time.",
-                    ],
+                    if cfg!(target_arch = "wasm32") {
+                        &[
+                            "Turn the machine on.",
+                            "Close Artspira: the Skitch talks to one app at a time.",
+                            "Click Connect, and choose the Skitch in the list the browser shows.",
+                        ]
+                    } else {
+                        &[
+                            "Turn the machine on.",
+                            "Close Artspira: the Skitch talks to one app at a time.",
+                        ]
+                    },
                 );
                 ui.horizontal(|ui| {
                     connect = primary(ui, "Connect").clicked();
@@ -1708,6 +1731,12 @@ const HOW_TO: &str =
 
 /// Open a web page in the browser.
 pub(crate) fn open_url(url: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        crate::platform::open_url(url);
+        return;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
     let cmd = if cfg!(target_os = "macos") {
         "open"
     } else if cfg!(target_os = "windows") {
@@ -1715,6 +1744,7 @@ pub(crate) fn open_url(url: &str) {
     } else {
         "xdg-open"
     };
+    #[cfg(not(target_arch = "wasm32"))]
     let _ = std::process::Command::new(cmd).arg(url).spawn();
 }
 

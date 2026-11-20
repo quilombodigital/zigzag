@@ -315,8 +315,12 @@ impl Studio {
                     self.close_picker();
                 }
             }
-            // At the bottom, apart from the tools: the agent's panel.
+            // At the bottom, apart from the tools: the agent's panel. (Not in
+            // the browser, where there's no agent program to run.)
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                if cfg!(target_arch = "wasm32") {
+                    return;
+                }
                 ui.add_space(10.0);
                 let on = self.agent_showing();
                 let r = icon_button(ui, Icon::Sparkle, "Agent", on, 30.0).on_hover_text(format!(

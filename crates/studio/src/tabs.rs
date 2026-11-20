@@ -669,7 +669,12 @@ impl Studio {
             .shrink2(Vec2::new(3.0, 4.0));
         let presp = ui
             .interact(plus, ui.scope_id().with("doc-tab-new"), Sense::click())
-            .on_hover_text("New Document (⌘N)");
+            // (In the browser, ⌘N / Ctrl+N is the browser's: no shortcut.)
+            .on_hover_text(if cfg!(target_arch = "wasm32") {
+                "New Document"
+            } else {
+                "New Document (⌘N)"
+            });
         presp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "New Tab"));
         if presp.hovered() {
             painter.rect_filled(plus, 5.0, p.hover);

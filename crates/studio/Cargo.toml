@@ -24,14 +24,31 @@ serde_json = "1.0.154"
 base64 = "0.23.1"
 usvg = "0.45"
 resvg = { version = "0.45", default-features = false }
-# File panels.
+# File panels: the system's on the desktop, the browser's in it.
 rfd = "0.17"
-# The agents' (MCP) server.
+# The agents' (MCP) server. (Compiled in the browser too, and never started
+# there: agents reach the page through crates/relay.)
 tiny_http = "0.12"
-# Only the glow (OpenGL) renderer is compiled in; no wgpu.
+# `Instant` that works in the browser too (std's there panics).
+web-time = "1"
+# Only the glow (OpenGL / WebGL 2) renderer is compiled in; no wgpu.
+eframe = { version = "0.37", default-features = false, features = ["glow", "default_fonts"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 eframe = { version = "0.37", default-features = false, features = [
     "glow", "default_fonts", "accesskit", "clipboard", "x11", "wayland", "__screenshot",
 ] }
+# The machine worker blocks on the desktop (see zigzag's src/machine).
+maybe-async = { version = "0.2", features = ["is_sync"] }
+
+# The browser: its APIs, and the async machine worker.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+maybe-async = "0.2"
+async-trait = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "HtmlAnchorElement", "Blob", "Url", "console", "Event", "EventTarget", "BeforeUnloadEvent"] }
 
 # The macOS menu bar. Elsewhere the menus are drawn in the window.
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -47,7 +64,8 @@ muda = { version = "0.21", optional = true }
 [features]
 default = []
 # Talk to a real Brother Skitch over Bluetooth (the simulated machine is
-# always there): zigzag's own Bluetooth.
+# always there). On the desktop this is zigzag's own Bluetooth; in the
+# browser, Web Bluetooth (src/platform).
 ble = ["zigzag/ble"]
 menu-check = ["dep:muda"]
 

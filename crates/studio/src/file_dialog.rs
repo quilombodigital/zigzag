@@ -71,7 +71,7 @@ impl Request {
     }
 
     /// The blocking dialog (not on macOS: see the module notes).
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_arch = "wasm32")))]
     fn run(self) -> Option<PathBuf> {
         let mut d = rfd::FileDialog::new();
         for (name, exts) in &self.filters {
@@ -87,6 +87,20 @@ impl Request {
             d.save_file()
         } else {
             d.pick_file()
+        }
+    }
+
+    /// In the browser: its own panels. The files are in memory there
+    /// (`zigzag::vfs`): the path handed back is one of those, which opens
+    /// (or is written to) as any other; `crate::platform` is what brings a
+    /// chosen file in and takes a written one out to the computer.
+    #[cfg(target_arch = "wasm32")]
+    fn begin(self) -> Pin<Box<dyn Future<Output = Option<PathBuf>>>> {
+        if self.save {
+            let name = self.file_name.unwrap_or_else(|| "design".into());
+            Box::pin(crate::platform::save_panel(name, self.filters))
+        } else {
+            Box::pin(crate::platform::open_panel(self.filters))
         }
     }
 
@@ -121,9 +135,9 @@ pub(crate) struct Pending {
 }
 
 enum Answer {
-    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    #[cfg_attr(any(target_os = "macos", target_arch = "wasm32"), allow(dead_code))]
     Ready(Option<PathBuf>),
-    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    #[cfg_attr(not(any(target_os = "macos", target_arch = "wasm32")), allow(dead_code))]
     Waiting(Pin<Box<dyn Future<Output = Option<PathBuf>>>>),
 }
 
@@ -145,9 +159,9 @@ impl Studio {
         if self.file_dialog.is_some() {
             return;
         }
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_arch = "wasm32"))]
         let answer = Answer::Waiting(req.begin());
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(any(target_os = "macos", target_arch = "wasm32")))]
         let answer = Answer::Ready(req.run());
         self.file_dialog = Some(Pending { then, answer });
         self.poll_file_dialog();

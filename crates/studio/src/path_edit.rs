@@ -2572,7 +2572,7 @@ mod tests {
 
     /// The same of your own designs: every `.svg` in the folder
     /// `ZIGZAG_DESIGNS` names
-    /// (`cargo test --features gui -- --ignored corner_drags_hold_on_designs_of_your_own`).
+    /// (`cargo test -p zigzag-studio --lib -- --ignored corner_drags_hold_on_designs_of_your_own`).
     #[test]
     #[ignore]
     fn corner_drags_hold_on_designs_of_your_own() {

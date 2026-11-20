@@ -850,13 +850,13 @@ mod perf_bench {
 
     fn time(h: &mut Harness<'static, Studio>, what: &str) {
         h.run_steps(3);
-        let t = std::time::Instant::now();
+        let t = web_time::Instant::now();
         for _ in 0..20 {
             h.step();
         }
         let shapes = h.output().shapes.clone();
         let n = shapes.len();
-        let tt = std::time::Instant::now();
+        let tt = web_time::Instant::now();
         let _ = h.ctx.tessellate(shapes, 1.0);
         println!(
             "{what}: frame {:.2} ms, tessellate {:.2} ms ({n} shapes)",

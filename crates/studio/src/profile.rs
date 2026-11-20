@@ -5,7 +5,7 @@
 //! benches, which read them with [`last`].) Off (and nearly free) otherwise.
 
 use std::cell::RefCell;
-use std::time::Instant;
+use web_time::Instant;
 
 thread_local! {
     static FRAME: RefCell<Option<Frame>> = const { RefCell::new(None) };

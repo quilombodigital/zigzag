@@ -261,6 +261,10 @@ fn config_dir() -> Option<std::path::PathBuf> {
     use std::sync::OnceLock;
     static DIR: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
     DIR.get_or_init(|| {
+        // In the browser: a folder of the files kept in memory (`zigzag::vfs`).
+        if cfg!(target_arch = "wasm32") {
+            return Some(std::path::PathBuf::from("/zigzag"));
+        }
         let home = std::path::PathBuf::from(std::env::var_os("HOME")?);
         let (new, old) = if cfg!(target_os = "macos") {
             let base = home.join("Library/Application Support");
@@ -273,7 +277,7 @@ fn config_dir() -> Option<std::path::PathBuf> {
         };
         if !new.exists() && old.is_dir() {
             // Best effort: if the move fails the app simply starts fresh.
-            let _ = std::fs::rename(&old, &new);
+            let _ = zigzag::vfs::rename(&old, &new);
         }
         Some(new)
     })
@@ -292,7 +296,7 @@ impl DockState {
             ..DockState::default()
         };
         let Some(v) = path
-            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|f| zigzag::vfs::read_to_string(f).ok())
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         else {
             return d;
@@ -401,9 +405,9 @@ impl DockState {
             "iconic": { "left": self.iconic[0], "right": self.iconic[1] },
         });
         if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
+            let _ = zigzag::vfs::create_dir_all(dir);
         }
-        let _ = std::fs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
+        let _ = zigzag::vfs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
     }
 }
 
@@ -3533,7 +3537,7 @@ impl Studio {
             }
             if peek {
                 self.bridges_peek =
-                    Some(std::time::Instant::now() + std::time::Duration::from_secs(6));
+                    Some(web_time::Instant::now() + std::time::Duration::from_secs(6));
                 fm.ui.ctx().request_repaint();
             }
             fm.row("Preview on", |ui, lid| {

@@ -116,7 +116,7 @@ impl Prefs {
             ..Default::default()
         };
         let Some(v) = path
-            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|f| zigzag::vfs::read_to_string(f).ok())
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         else {
             return p;
@@ -186,9 +186,9 @@ impl Prefs {
             "advanced": self.advanced,
         });
         if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
+            let _ = zigzag::vfs::create_dir_all(dir);
         }
-        let _ = std::fs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
+        let _ = zigzag::vfs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
     }
 
     /// Whether the section called `name` is open: as it was left, or
@@ -427,7 +427,11 @@ impl Studio {
                                 ui.set_width(SIDE_W - 2.0 * WELL);
                                 ui.set_min_height(BODY_H - 2.0 * WELL);
                                 ui.spacing_mut().item_spacing.y = 2.0;
-                                for s in Section::ALL {
+                                // (The browser runs no agent program and
+                                // no server of its own: no Agent section.)
+                                for s in Section::ALL.into_iter().filter(|s| {
+                                    !(cfg!(target_arch = "wasm32") && *s == Section::Agent)
+                                }) {
                                     if section_row(ui, s.label(), self.settings_ui.section == s)
                                         .clicked()
                                     {
@@ -878,8 +882,10 @@ impl Studio {
             "Faster for big designs. Turn it off if stitches don't show, or show wrongly, on this computer.",
         );
 
-        group(ui, "Updates", false);
+        // (The browser always has the newest: nothing to look for.)
         let mut check = false;
+        if !cfg!(target_arch = "wasm32") {
+        group(ui, "Updates", false);
         row(ui, "Automatic", |ui, _| {
             ui.checkbox(&mut prefs.auto_update, "Look for updates when ZigZag opens")
                 .on_hover_text("Asks GitHub for ZigZag's latest release, when it opens and once a day. Nothing about you or your designs is sent.");
@@ -888,6 +894,7 @@ impl Studio {
             value(ui, env!("CARGO_PKG_VERSION")).labelled_by(lid);
             check = ui.button("Check Now").clicked();
         });
+        }
         if check {
             let ctx = ui.ctx().clone();
             self.updater.check(&ctx, true);

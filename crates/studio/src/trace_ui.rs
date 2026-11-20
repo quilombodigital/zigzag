@@ -108,7 +108,7 @@ fn thumbnail(img: &Image, max: Vec2) -> egui::ColorImage {
 impl Studio {
     /// Start tracing an image file (from Open, a drop or Place).
     pub fn open_image(&mut self, path: &Path, target: Target) {
-        let bytes = match std::fs::read(path) {
+        let bytes = match zigzag::vfs::read(path) {
             Ok(b) => b,
             Err(e) => {
                 self.status = format!("Couldn't read {}: {e}", path.display());
@@ -208,7 +208,7 @@ impl Studio {
         let image = t.image.clone();
         let (tx, rx) = channel();
         let repaint = ctx.clone();
-        std::thread::spawn(move || {
+        let work = move || {
             let r = zigzag::trace::trace(&image, &opts)
                 .map_err(|e| format!("{e:#}"))
                 .and_then(|t| {
@@ -217,7 +217,13 @@ impl Studio {
                 });
             let _ = tx.send((n, r));
             repaint.request_repaint();
-        });
+        };
+        // In the browser there's no thread to give it to: it's traced here,
+        // and the window waits.
+        #[cfg(target_arch = "wasm32")]
+        work();
+        #[cfg(not(target_arch = "wasm32"))]
+        std::thread::spawn(work);
         t.running = Some((n, rx));
         ctx.request_repaint_after(std::time::Duration::from_millis(50));
     }

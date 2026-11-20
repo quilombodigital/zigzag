@@ -32,7 +32,7 @@ impl Machines {
             ..Default::default()
         };
         let Some(v) = path
-            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|f| zigzag::vfs::read_to_string(f).ok())
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         else {
             // Nothing kept yet (a new install): new documents start on the
@@ -60,9 +60,9 @@ impl Machines {
             "machines": self.mine.iter().map(Profile::to_json).collect::<Vec<_>>(),
         });
         if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
+            let _ = zigzag::vfs::create_dir_all(dir);
         }
-        let _ = std::fs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
+        let _ = zigzag::vfs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
     }
 
     /// Every machine: ZigZag's, then yours.
@@ -300,7 +300,11 @@ impl Studio {
                 }
                 Some(_) => "One of your machines.".to_string(),
                 None if here.is_some() => {
-                    "This design was set up for a machine this computer doesn't have.".to_string()
+                    if cfg!(target_arch = "wasm32") {
+                        "This design was set up for a machine that isn't set up here.".to_string()
+                    } else {
+                        "This design was set up for a machine this computer doesn't have.".to_string()
+                    }
                 }
                 None => "The machine this design is for: its hoops, the file it reads and what it asks of the stitches. New documents start with the one you choose.".to_string(),
             };

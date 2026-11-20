@@ -7,7 +7,8 @@ use crate::app::Studio;
 use crate::theme::{caption, pal_ui, section_break, space};
 use eframe::egui::{self, Pos2, Sense, Vec2};
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 
 /// How many recent calls the popover keeps.
 const KEEP: usize = 40;
@@ -137,7 +138,24 @@ pub enum State {
 }
 
 impl Studio {
+    #[cfg_attr(target_arch = "wasm32", allow(unreachable_code))]
     pub(crate) fn mcp_state(&self) -> State {
+        // In the browser: where the relay stands (see `crate::platform`).
+        #[cfg(target_arch = "wasm32")]
+        {
+            use crate::platform::Relay;
+            let busy = self
+                .mcp_ui
+                .calls
+                .back()
+                .is_some_and(|c| c.at.elapsed() < BUSY);
+            return match crate::platform::relay() {
+                Relay::Off => State::Off,
+                Relay::Looking => State::Waiting,
+                Relay::On if busy => State::Busy,
+                Relay::On => State::Connected,
+            };
+        }
         let Some(server) = &self.mcp else {
             return if self.mcp_ui.start_error.is_some() {
                 State::Failed
@@ -231,6 +249,7 @@ impl Studio {
             });
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(unreachable_code))]
     fn mcp_body(&mut self, ui: &mut egui::Ui, state: State) {
         let p = pal_ui(ui);
         ui.horizontal(|ui| {
@@ -247,6 +266,33 @@ impl Studio {
             });
         });
         ui.add_space(space::XS);
+        // In the browser there's no server in the app: a relay program on
+        // the computer stands in for it.
+        #[cfg(target_arch = "wasm32")]
+        {
+            use crate::platform::Relay;
+            let (said, more) = match crate::platform::relay() {
+                Relay::On => (
+                    "Agents can work on this tab.",
+                    "It's paired with the relay on this computer: MCP clients connect to \
+                     http://127.0.0.1:7878/mcp, as they do for the desktop app.",
+                ),
+                Relay::Looking => (
+                    "Looking for the relay…",
+                    "This tab is paired with a relay that isn't answering. Start \
+                     zigzag-mcp-relay again, and open ZZZ with the link it prints.",
+                ),
+                Relay::Off => (
+                    "Agents aren't connected.",
+                    "A page can't be reached by an MCP client by itself. Run zigzag-mcp-relay \
+                     on this computer and open ZZZ with the link it prints: agents then \
+                     work on this tab, with the same tools as in the desktop app.",
+                ),
+            };
+            ui.label(egui::RichText::new(said).size(12.0));
+            caption(ui, more);
+            return;
+        }
         let Some(server) = &self.mcp else {
             match &self.mcp_ui.start_error {
                 Some(e) => {

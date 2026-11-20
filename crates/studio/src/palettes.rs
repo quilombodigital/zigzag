@@ -65,7 +65,7 @@ impl Palettes {
             ..Default::default()
         };
         let Some(v) = path
-            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|f| zigzag::vfs::read_to_string(f).ok())
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         else {
             return p;
@@ -93,9 +93,9 @@ impl Palettes {
             })).collect::<Vec<_>>()
         });
         if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
+            let _ = zigzag::vfs::create_dir_all(dir);
         }
-        let _ = std::fs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
+        let _ = zigzag::vfs::write(path, serde_json::to_string_pretty(&v).unwrap_or_default());
     }
 
     pub fn name(&self, s: Source) -> String {

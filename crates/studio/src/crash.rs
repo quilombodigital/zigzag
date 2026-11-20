@@ -11,7 +11,7 @@
 //! Mac those are in Console's own crash reports.
 
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use web_time::SystemTime;
 
 /// How many logs are kept (the oldest go first).
 const KEEP: usize = 10;

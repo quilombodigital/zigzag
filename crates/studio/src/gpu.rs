@@ -47,6 +47,11 @@ struct GlState {
     pending: Vec<(u64, Vec<f32>, Vec<f32>)>,
 }
 
+// In the browser there is one thread, and glow's context isn't marked as
+// safe to hand to another; the paint callback's type asks for it all the same.
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for GlState {}
+
 struct GlBlock {
     segs: glow::Buffer,
     n_segs: i32,

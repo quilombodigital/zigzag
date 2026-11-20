@@ -1,8 +1,11 @@
 //! ZigZag studio: visual stitch editor (egui, OpenGL via glow) with an
 //! MCP server so agents can work on the same canvas.
 //!
-//! A library, and the desktop app built on it (the `zigzag-studio` binary,
-//! see [`run`]).
+//! One library for the two places it runs: the desktop app (the
+//! `zigzag-studio` binary, see [`run`]) and the browser (ZZZ, the
+//! `zigzag-web` crate, which starts a [`Studio`] in the page). What only
+//! the browser needs is in [`platform`].
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 
 mod about;
 mod agent;
@@ -65,7 +68,15 @@ mod update;
 mod view_tools;
 mod widgets;
 
+/// What the studio asks of the browser: files, storage, Bluetooth, agents.
+#[cfg(target_arch = "wasm32")]
+pub mod platform;
+
 /// The desktop app's start: the command line, then the window (or, with
 /// `--mcp-stdio`, the agent tools with no window).
+#[cfg(not(target_arch = "wasm32"))]
 mod desktop;
+#[cfg(not(target_arch = "wasm32"))]
 pub use desktop::run;
+
+pub use app::Studio;

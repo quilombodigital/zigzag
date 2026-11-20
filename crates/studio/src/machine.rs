@@ -1,12 +1,15 @@
 //! The connection to the Skitch, kept by a worker thread so the UI never
-//! waits on Bluetooth. The worker connects, runs what the Machine panel
-//! asks (send, trace, sew, move the needle), and between times asks the
-//! machine how it's doing: every half second while it sews, less often
+//! waits on Bluetooth. (In the browser, which has no threads, the same
+//! worker is an async task on the page's own; see
+//! `zigzag::machine::session`.) The worker connects, runs what the Machine
+//! panel asks (send, trace, sew, move the needle), and between times asks
+//! the machine how it's doing: every half second while it sews, less often
 //! while it waits. The panel reads the latest [`Snapshot`].
 
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 use zigzag::design::Design;
 use zigzag::formats::pen::PenData;
 use zigzag::machine::protocol::{self, MachineInfo, PatternInfo, Progress, Status};
@@ -166,9 +169,21 @@ impl Machine {
             let (tx, rx) = mpsc::channel();
             let shared = self.shared.clone();
             let ctx = ctx.clone();
-            let _ = std::thread::Builder::new()
-                .name("skitch".into())
-                .spawn(move || worker(rx, shared, ctx));
+            #[cfg(target_arch = "wasm32")]
+            wasm_bindgen_futures::spawn_local(worker(rx, shared, ctx));
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let started = std::thread::Builder::new()
+                    .name("skitch".into())
+                    .spawn(move || worker(rx, shared, ctx));
+                // No thread to keep the connection on: say so, rather than
+                // search for ever.
+                if started.is_err() {
+                    self.shared.lock().unwrap().link =
+                        Link::Failed("Couldn't start talking to the machine.".into());
+                    return;
+                }
+            }
             self.tx = Some(tx);
         }
         if let Some(tx) = &self.tx {
@@ -230,8 +245,8 @@ fn new_uuid() -> [u8; 16] {
     for half in out.chunks_mut(8) {
         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
         h.write_u128(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
+            web_time::SystemTime::now()
+                .duration_since(web_time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())
                 .unwrap_or(0),
         );
@@ -251,7 +266,7 @@ fn settings_log(label: &str, bytes: &[u8]) {
         return;
     };
     if let Some(dir) = path.parent() {
-        let _ = std::fs::create_dir_all(dir);
+        let _ = zigzag::vfs::create_dir_all(dir);
     }
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
@@ -297,27 +312,58 @@ pub fn has_progress(st: Status) -> bool {
     )
 }
 
-fn open(sim: Option<Sim>) -> anyhow::Result<Session> {
+#[maybe_async::maybe_async(?Send)]
+async fn open(sim: Option<Sim>) -> anyhow::Result<Session> {
     let link: Box<dyn Transport> = match sim {
         Some(s) => Box::new(s),
-        None => ble_link()?,
+        None => ble_link().await?,
     };
-    Session::open(link)
+    Session::open(link).await
 }
 
-#[cfg(feature = "ble")]
+/// In the browser: its own Bluetooth (the page asks which device).
+#[cfg(target_arch = "wasm32")]
+async fn ble_link() -> anyhow::Result<Box<dyn Transport>> {
+    crate::platform::ble_link().await
+}
+
+/// The next command, or none within `wait`. (In the browser nothing can
+/// block: it looks again every so often.)
+#[cfg(not(target_arch = "wasm32"))]
+fn next_cmd(rx: &Receiver<Cmd>, wait: Duration) -> Result<Cmd, RecvTimeoutError> {
+    rx.recv_timeout(wait)
+}
+#[cfg(target_arch = "wasm32")]
+async fn next_cmd(rx: &Receiver<Cmd>, wait: Duration) -> Result<Cmd, RecvTimeoutError> {
+    const LOOK: Duration = Duration::from_millis(30);
+    let until = Instant::now() + wait;
+    loop {
+        match rx.try_recv() {
+            Ok(c) => return Ok(c),
+            Err(mpsc::TryRecvError::Disconnected) => return Err(RecvTimeoutError::Disconnected),
+            Err(mpsc::TryRecvError::Empty) => {}
+        }
+        if Instant::now() >= until {
+            return Err(RecvTimeoutError::Timeout);
+        }
+        zigzag::machine::session::pause(LOOK).await;
+    }
+}
+
+#[cfg(all(feature = "ble", not(target_arch = "wasm32")))]
 fn ble_link() -> anyhow::Result<Box<dyn Transport>> {
     Ok(Box::new(zigzag::machine::skitch::BleLink::connect(
         Duration::from_secs(12),
     )?))
 }
 
-#[cfg(not(feature = "ble"))]
+#[cfg(all(not(feature = "ble"), not(target_arch = "wasm32")))]
 fn ble_link() -> anyhow::Result<Box<dyn Transport>> {
-    anyhow::bail!("This build has no Bluetooth. Rebuild with --features gui,ble.")
+    anyhow::bail!("This build has no Bluetooth. Rebuild with --features zigzag-studio/ble.")
 }
 
-fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Context) {
+#[maybe_async::maybe_async(?Send)]
+async fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Context) {
     let mut session: Option<Session> = None;
     let mut last_counts = Instant::now();
     // The thread error the needle was already moved back for.
@@ -328,7 +374,7 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
     };
     loop {
         let wait = interval(shared.lock().unwrap().status);
-        let cmd = match rx.recv_timeout(wait) {
+        let cmd = match next_cmd(&rx, wait).await {
             Ok(c) => Some(c),
             Err(RecvTimeoutError::Timeout) => None,
             Err(RecvTimeoutError::Disconnected) => break,
@@ -346,10 +392,10 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                         ..Snapshot::default()
                     }
                 });
-                match open(sim) {
+                match open(sim).await {
                     Ok(mut s) => {
-                        let info = s.info().ok();
-                        let counts = s.service_count().ok();
+                        let info = s.info().await.ok();
+                        let counts = s.service_count().await.ok();
                         update(&mut |snap| {
                             snap.link = Link::Connected;
                             snap.info = info.clone();
@@ -398,9 +444,10 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                                 last = f;
                                 update(&mut |snap| snap.upload = Some(f));
                             }
-                        });
+                        })
+                        .await;
                         if r.is_ok() {
-                            let info = s.pattern_info().ok();
+                            let info = s.pattern_info().await.ok();
                             update(&mut |snap| {
                                 snap.uuid = Some(uuid);
                                 snap.pattern = info;
@@ -410,18 +457,18 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                             });
                         }
                         match r {
-                            Ok(()) if trace => ("Starting the trial run", s.mask_trace()),
+                            Ok(()) if trace => ("Starting the trial run", s.mask_trace().await),
                             r => ("Sending", r),
                         }
                     }
-                    Cmd::Trace => ("Starting the trial run", s.mask_trace()),
+                    Cmd::Trace => ("Starting the trial run", s.mask_trace().await),
                     Cmd::Sew => {
                         rolled_for = None;
-                        ("Starting", s.start_sewing())
+                        ("Starting", s.start_sewing().await)
                     }
-                    Cmd::SetStitch(k) => ("Moving the needle", s.set_stitch(k)),
+                    Cmd::SetStitch(k) => ("Moving the needle", s.set_stitch(k).await),
                     Cmd::ReadSettings(label) => {
-                        let r = s.settings();
+                        let r = s.settings().await;
                         if let Ok(bytes) = &r {
                             settings_log(&label, bytes);
                             let entry = (label, bytes.clone());
@@ -430,7 +477,7 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                         ("Reading the settings", r.map(|_| ()))
                     }
                     Cmd::Delete => {
-                        let r = s.delete_pattern();
+                        let r = s.delete_pattern().await;
                         if r.is_ok() {
                             update(&mut |snap| {
                                 snap.uuid = None;
@@ -456,28 +503,28 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
         }
         // Then (and on every quiet interval) see how it's doing.
         let Some(s) = session.as_mut() else { continue };
-        match s.state() {
+        match s.state().await {
             Ok((st, err)) => {
                 let progress = if has_progress(st) {
-                    s.progress().ok()
+                    s.progress().await.ok()
                 } else {
                     None
                 };
                 let have = shared.lock().unwrap().clone();
                 let uuid = if have.uuid.is_none() || st == Status::Idle {
-                    s.pattern_uuid().ok().flatten()
+                    s.pattern_uuid().await.ok().flatten()
                 } else {
                     have.uuid
                 };
                 let pattern =
                     if uuid.is_some() && have.pattern.is_none_or(|p| p.total_stitches == 0) {
-                        s.pattern_info().ok()
+                        s.pattern_info().await.ok()
                     } else {
                         have.pattern
                     };
                 let counts = if last_counts.elapsed() > Duration::from_secs(10) {
                     last_counts = Instant::now();
-                    s.service_count().ok().or(have.counts)
+                    s.service_count().await.ok().or(have.counts)
                 } else {
                     have.counts
                 };
@@ -491,7 +538,7 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                 {
                     rolled_for = Some(err);
                     let to = p.current_stitch.saturating_sub(n);
-                    if s.set_stitch(to).is_ok() {
+                    if s.set_stitch(to).await.is_ok() {
                         rolled = Some((err, n));
                     }
                 }
@@ -500,7 +547,7 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                     rolled = None;
                 }
                 let progress = if rolled != have.rolled_back {
-                    s.progress().ok().or(progress)
+                    s.progress().await.ok().or(progress)
                 } else {
                     progress
                 };
@@ -519,7 +566,9 @@ fn worker(rx: Receiver<Cmd>, shared: Arc<Mutex<Snapshot>>, ctx: eframe::egui::Co
                 });
             }
             Err(e) => {
-                if !s.connected() || session.as_mut().is_some_and(|s| s.state().is_err()) {
+                // (Asked twice: one failed answer isn't a lost machine.)
+                let lost = !s.connected() || s.state().await.is_err();
+                if lost {
                     if let Some(mut s) = session.take() {
                         s.close();
                     }

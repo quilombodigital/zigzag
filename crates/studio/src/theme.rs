@@ -97,7 +97,7 @@ fn system_font() -> Option<(String, Vec<u8>, u32)> {
         "/System/Library/Fonts/SFNS.ttf",
         "/System/Library/Fonts/SFNSText.ttf",
     ] {
-        if let Ok(bytes) = std::fs::read(path) {
+        if let Ok(bytes) = zigzag::vfs::read(path) {
             return Some(("system-ui".into(), bytes, 0));
         }
     }

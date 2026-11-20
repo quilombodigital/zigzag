@@ -4,7 +4,7 @@
 //! the UI pass plus egui's tessellation of what it painted, which is
 //! where directly drawn stitches cost.
 //!
-//! `cargo test --release --features gui --bin zigzag-studio perf_bench -- --ignored --nocapture`
+//! `cargo test --release -p zigzag-studio --lib perf_bench -- --ignored --nocapture`
 
 #![cfg(test)]
 
@@ -184,7 +184,7 @@ fn typing_and_dragging_on_a_traced_logo() {
 /// GPU, so the painter's tessellation of them here would say nothing).
 /// With `TL_PROFILE=1`, each frame's sections go to stderr as well.
 ///
-/// `ZIGZAG_DESIGNS=<folder> cargo test --release --features gui --bin zigzag-studio perf_bench::gestures -- --ignored --nocapture`
+/// `ZIGZAG_DESIGNS=<folder> cargo test --release -p zigzag-studio --lib perf_bench::gestures -- --ignored --nocapture`
 #[test]
 #[ignore]
 fn gestures_on_designs_of_your_own() {
@@ -353,7 +353,7 @@ fn gestures_on_designs_of_your_own() {
 /// Planning a design of your own from nothing, over and over (to look at
 /// with a sampling profiler), and how long each object takes by itself.
 ///
-/// `ZIGZAG_DESIGN=<file.svg> cargo test --release --features gui --bin zigzag-studio perf_bench::planning -- --ignored --nocapture`
+/// `ZIGZAG_DESIGN=<file.svg> cargo test --release -p zigzag-studio --lib perf_bench::planning -- --ignored --nocapture`
 #[test]
 #[ignore]
 fn planning_a_design_of_your_own() {
@@ -430,7 +430,7 @@ fn planning_a_design_of_your_own() {
 /// (the app draws those on the GPU); then egui's tessellation of
 /// everything painted but the stitches; then the slowest frame's sections.
 ///
-/// `TL_PROFILE=quiet cargo test --release --features gui --bin zigzag-studio perf_bench::making -- --ignored --nocapture`
+/// `TL_PROFILE=quiet cargo test --release -p zigzag-studio --lib perf_bench::making -- --ignored --nocapture`
 #[test]
 #[ignore]
 fn making_and_aligning() {
@@ -736,7 +736,7 @@ fn times(
 /// (the SVG rewritten and read back), the frame after it (the plan, when
 /// it's made there), and how long until the stitches are the new font's.
 ///
-/// `cargo test --release --features gui --bin zigzag-studio perf_bench::stepping -- --ignored --nocapture`
+/// `cargo test --release -p zigzag-studio --lib perf_bench::stepping -- --ignored --nocapture`
 #[test]
 #[ignore]
 fn stepping_through_fonts() {

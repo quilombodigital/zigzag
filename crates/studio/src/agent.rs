@@ -15,7 +15,9 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+// (The browser has no `std` clock; the agents' work marks are drawn there too.)
+use web_time::Instant;
 
 /// The platform the studio runs on, for install steps and wording.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -378,6 +380,10 @@ impl AgentState {
     /// being found out, off the UI thread (the login shell can take a
     /// moment), with a repaint when it's known.
     pub fn installed(&mut self, kind: AgentKind, ctx: &egui::Context) -> Option<bool> {
+        // (In the browser there are no programs to run.)
+        if cfg!(target_arch = "wasm32") {
+            return Some(false);
+        }
         if let Some(rx) = &self.lookup
             && let Ok((login, found)) = rx.try_recv()
         {

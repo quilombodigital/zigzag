@@ -5171,9 +5171,12 @@ name = "zigzag-studio"
 version = "0.1.6"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.23.1",
  "eframe",
  "egui_kittest",
+ "js-sys",
+ "maybe-async",
  "muda",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
@@ -5184,6 +5187,10 @@ dependencies = [
  "tiny_http",
  "usvg",
  "vectorcraft-trace",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
  "winresource",
  "zigzag",
 ]
