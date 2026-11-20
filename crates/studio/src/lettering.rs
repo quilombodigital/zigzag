@@ -14,6 +14,9 @@ pub struct LetteringState {
     /// Edits to the selected lettering object: (uid, settings).
     pub edit: Option<(usize, TextSpec)>,
     pub fonts: Vec<String>,
+    /// Which fonts `fonts` was read from (`zigzag::svg::fonts_generation`):
+    /// fonts can arrive later (in the browser, they all do).
+    pub fonts_generation: u64,
     pub font_filter: String,
     /// The Type tool is typing into this object (uid), in the box over the
     /// canvas; `typed` is the text as typed so far.
@@ -316,8 +319,10 @@ pub(crate) fn font_list(
 
 impl Studio {
     pub(crate) fn fonts(&mut self) -> Vec<String> {
-        if self.lettering.fonts.is_empty() {
+        let generation = zigzag::svg::fonts_generation();
+        if self.lettering.fonts.is_empty() || self.lettering.fonts_generation != generation {
             self.lettering.fonts = font_families();
+            self.lettering.fonts_generation = generation;
         }
         self.lettering.fonts.clone()
     }
