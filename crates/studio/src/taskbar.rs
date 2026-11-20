@@ -842,7 +842,7 @@ mod tests {
 
     #[test]
     fn the_grip_moves_the_task_bar_and_pinning_holds_it() {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1000.0))
             .build_ui_state(
@@ -921,7 +921,7 @@ mod tests {
 
     #[test]
     fn the_task_bar_follows_the_selection_and_acts_on_it() {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1000.0))
             .build_ui_state(

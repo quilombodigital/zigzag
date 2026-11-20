@@ -16,7 +16,7 @@ use zigzag::geom::P;
 fn studio_with_logo() -> Harness<'static, Studio> {
     let png = std::path::PathBuf::from(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/examples/agent-badge-preview.png"
+        "/../../examples/agent-badge-preview.png"
     ));
     let mut h = Harness::builder()
         .with_size(Vec2::new(1600.0, 1000.0))
@@ -435,7 +435,7 @@ fn planning_a_design_of_your_own() {
 #[ignore]
 fn making_and_aligning() {
     let example = |f: &str| {
-        std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples")).join(f)
+        std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples")).join(f)
     };
     let mut files = vec![
         example("badge.svg"),

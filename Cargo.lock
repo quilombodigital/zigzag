@@ -5123,28 +5123,42 @@ dependencies = [
  "base64 0.23.1",
  "btleplug",
  "clap",
- "eframe",
- "egui_kittest",
  "futures",
  "i_overlay",
  "kurbo 0.13.1",
  "libdbus-sys",
- "muda",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
  "resvg",
- "rfd",
  "roxmltree",
  "serde_json",
  "svgtypes",
- "tiny_http",
  "tokio",
  "ttf-parser",
  "usvg",
  "uuid",
  "vectorcraft-trace",
  "winresource",
+]
+
+[[package]]
+name = "zigzag-studio"
+version = "0.1.6"
+dependencies = [
+ "anyhow",
+ "base64 0.23.1",
+ "eframe",
+ "egui_kittest",
+ "muda",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "resvg",
+ "rfd",
+ "serde_json",
+ "tiny_http",
+ "usvg",
+ "vectorcraft-trace",
+ "winresource",
+ "zigzag",
 ]
 
 [[package]]

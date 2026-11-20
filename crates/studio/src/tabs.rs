@@ -966,7 +966,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn example(name: &str) -> PathBuf {
-        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/")).join(name)
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/")).join(name)
     }
 
     fn svg_file(dir: &str, name: &str) -> PathBuf {

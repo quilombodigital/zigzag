@@ -2321,7 +2321,7 @@ mod tests {
 
     fn studio() -> egui_kittest::Harness<'static, Studio> {
         let path =
-            std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+            std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = egui_kittest::Harness::builder()
             .with_size(Vec2::new(1400.0, 900.0))
             .build_ui_state(

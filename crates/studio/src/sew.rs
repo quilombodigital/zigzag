@@ -1747,7 +1747,7 @@ mod tests {
 
     fn studio(sim: SimConfig) -> (Harness<'static, Studio>, Sim) {
         let path =
-            std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+            std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = Harness::builder()
             .with_size(egui::Vec2::new(1400.0, 1300.0))
             .build_ui_state(

@@ -639,7 +639,7 @@ mod tests {
 
     fn studio(file: Option<&str>) -> Harness<'static, Studio> {
         let path =
-            file.map(|f| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/")).join(f));
+            file.map(|f| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/")).join(f));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 860.0))
             .build_ui_state(

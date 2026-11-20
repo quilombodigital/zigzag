@@ -19,8 +19,8 @@ pub fn sync(ctx: &eframe::egui::Context) {
             return;
         };
         let bytes: &[u8] = match theme {
-            Theme::Light => include_bytes!("../../packaging/macos/AppIcon.icns"),
-            Theme::Dark => include_bytes!("../../packaging/macos/AppIcon-dark.icns"),
+            Theme::Light => include_bytes!("../../../packaging/macos/AppIcon.icns"),
+            Theme::Dark => include_bytes!("../../../packaging/macos/AppIcon-dark.icns"),
         };
         let data = NSData::with_bytes(bytes);
         if let Some(image) = NSImage::initWithData(NSImage::alloc(), &data) {

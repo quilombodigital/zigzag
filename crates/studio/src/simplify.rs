@@ -369,7 +369,7 @@ mod tests {
     /// The badge, with its ring in a blue of its own and a speck added:
     /// four threads, one of them barely different from another.
     fn studio() -> Harness<'static, Studio> {
-        let badge = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/badge.svg");
+        let badge = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/badge.svg");
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1500.0))
             .build_ui_state(

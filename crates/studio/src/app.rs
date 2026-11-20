@@ -2654,7 +2654,7 @@ mod tests {
     use egui_kittest::kittest::Queryable;
 
     fn studio(select: Option<usize>) -> Harness<'static, Studio> {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1500.0))
             .build_ui_state(
@@ -2795,7 +2795,7 @@ mod tests {
 
     #[test]
     fn clicks_select_whole_groups_and_command_click_one_object() {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/groups.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/groups.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1500.0))
             .build_ui_state(
@@ -2840,7 +2840,7 @@ mod tests {
     }
 
     fn groups_studio() -> Harness<'static, Studio> {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/groups.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/groups.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1500.0))
             // Real frame times, so two clicks make a double-click.

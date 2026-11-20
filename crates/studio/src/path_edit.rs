@@ -1560,7 +1560,7 @@ mod tests {
     use zigzag::geom::{rotate_about, scale_about, translation};
 
     fn studio() -> Harness<'static, Studio> {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1000.0))
             .build_ui_state(
@@ -2562,7 +2562,7 @@ mod tests {
     fn corner_drags_hold_on_the_example_designs() {
         let mut rounded = 0;
         for name in ["badge", "groups", "lettering"] {
-            let path = format!("{}/examples/{name}.svg", env!("CARGO_MANIFEST_DIR"));
+            let path = format!("{}/../../examples/{name}.svg", env!("CARGO_MANIFEST_DIR"));
             if let Ok(svg) = std::fs::read_to_string(&path) {
                 rounded += corners_hold_on(name, &svg);
             }

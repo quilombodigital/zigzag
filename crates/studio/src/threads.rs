@@ -708,7 +708,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn studio() -> Harness<'static, Studio> {
-        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/badge.svg"));
+        let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/badge.svg"));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1400.0, 1500.0))
             .build_ui_state(

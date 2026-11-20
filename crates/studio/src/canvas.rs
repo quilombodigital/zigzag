@@ -870,7 +870,7 @@ mod perf_bench {
     fn idle_frame_cost() {
         let png = std::path::PathBuf::from(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/examples/agent-badge-preview.png"
+            "/../../examples/agent-badge-preview.png"
         ));
         let mut h = Harness::builder()
             .with_size(Vec2::new(1600.0, 1000.0))
