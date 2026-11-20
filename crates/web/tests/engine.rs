@@ -143,3 +143,93 @@ fn letters_with_a_font_given_as_bytes() {
 fn a_pes_from_elsewhere() {
     round_trip("sample1.pes", include_bytes!("fixtures/local/sample1.pes"));
 }
+
+/// Every font in the library ZZZ comes with (assets/fonts/library) sets
+/// text that turns into stitches, in satin, as lettering starts in.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn every_font_in_the_library_embroiders() {
+    use zigzag::document::{TextSpec, font_families};
+    macro_rules! library {
+        ($($file:literal),* $(,)?) => {
+            [$( ($file, include_bytes!(concat!("../assets/fonts/library/", $file)).as_slice()) ),*]
+        };
+    }
+    let fonts = library![
+        "abrilfatface/AbrilFatface-Regular.ttf",
+        "alfaslabone/AlfaSlabOne-Regular.ttf",
+        "anton/Anton-Regular.ttf",
+        "archivoblack/ArchivoBlack-Regular.ttf",
+        "bebasneue/BebasNeue-Regular.ttf",
+        "blackopsone/BlackOpsOne-Regular.ttf",
+        "bungee/Bungee-Regular.ttf",
+        "caveat/Caveat-Variable.ttf",
+        "cinzel/Cinzel-Variable.ttf",
+        "courgette/Courgette-Regular.ttf",
+        "dancingscript/DancingScript-Variable.ttf",
+        "fredoka/Fredoka-Variable.ttf",
+        "graduate/Graduate-Regular.ttf",
+        "greatvibes/GreatVibes-Regular.ttf",
+        "kaushanscript/KaushanScript-Regular.ttf",
+        "lobster/Lobster-Regular.ttf",
+        "lora/Lora-Variable.ttf",
+        "montserrat/Montserrat-Variable.ttf",
+        "nunito/Nunito-Variable.ttf",
+        "oswald/Oswald-Variable.ttf",
+        "pacifico/Pacifico-Regular.ttf",
+        "permanentmarker/PermanentMarker-Regular.ttf",
+        "playfairdisplay/PlayfairDisplay-Variable.ttf",
+        "poppins/Poppins-Bold.ttf",
+        "poppins/Poppins-Regular.ttf",
+        "righteous/Righteous-Regular.ttf",
+        "satisfy/Satisfy-Regular.ttf",
+        "staatliches/Staatliches-Regular.ttf",
+    ];
+    // (The index the page reads lists the same files.)
+    let index = include_str!("../assets/fonts/library/library.json");
+    for (file, _) in &fonts {
+        assert!(index.contains(file), "{file} is in library.json");
+    }
+    assert_eq!(index.matches("\"file\"").count(), fonts.len(), "and nothing else");
+
+    // The library's families, read from its files (not by comparing the
+    // list before and after: other tests add fonts at the same time).
+    let mut own = usvg::fontdb::Database::new();
+    for (_, bytes) in &fonts {
+        own.load_font_data(bytes.to_vec());
+    }
+    let mut added: Vec<String> = own
+        .faces()
+        .filter_map(|f| f.families.first().map(|(n, _)| n.clone()))
+        .collect();
+    added.sort();
+    added.dedup();
+    zigzag::svg::add_fonts(fonts.iter().map(|(_, bytes)| bytes.to_vec()));
+    let listed = font_families();
+    for family in &added {
+        assert!(listed.contains(family), "{family} is offered for lettering");
+    }
+    let mut thin = Vec::new();
+    for family in &added {
+        let mut doc = Document::empty();
+        doc.add_lettering(
+            &TextSpec {
+                text: "Abc".into(),
+                font: family.clone(),
+                size_mm: 12.0,
+                ..TextSpec::default()
+            },
+            (0.0, 0.0),
+        )
+        .unwrap_or_else(|e| panic!("{family}: {e:#}"));
+        let n = doc.plan().stitch_count();
+        assert!(n > 0, "{family} set no stitches");
+        say(&format!("FONT {family}: {n} stitches"));
+        if n < 100 {
+            thin.push(family.clone());
+        }
+    }
+    // Every file brought its family (Poppins is one family in two files).
+    assert_eq!(added.len(), fonts.len() - 1, "families: {added:?}");
+    say(&format!("FONTS {} families; few stitches: {thin:?}", added.len()));
+}

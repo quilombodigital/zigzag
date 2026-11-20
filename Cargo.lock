@@ -5270,6 +5270,7 @@ name = "zigzag-web"
 version = "0.1.6"
 dependencies = [
  "eframe",
+ "usvg",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

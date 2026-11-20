@@ -95,6 +95,7 @@ pub async fn start() -> Result<(), JsValue> {
             // its link.
             Box::new(|cc| {
                 platform::relay_begin(&cc.egui_ctx);
+                platform::load_font_library(&cc.egui_ctx);
                 Ok(Box::new(Studio::new(cc, None, None, None)))
             }),
         )

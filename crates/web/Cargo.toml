@@ -30,6 +30,7 @@ ble = ["zigzag-studio/ble"]
 # and in WebAssembly, to compare the two.
 [dev-dependencies]
 zigzag = { path = "../.." }
+usvg = "0.45"
 wasm-bindgen-test = "0.3"
 web-time = "1"
 
